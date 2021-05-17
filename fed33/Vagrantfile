@@ -20,5 +20,6 @@ Vagrant.configure("2") do |config|
     sudo dnf install -y python3-pyelftools
     sudo dnf groupinstall "Development Tools"
     sudo dnf install libpcap-devel zlib-devel libfdt-devel openssl-devel
+    sudo modprobe vfio-pci
   SHELL
 end
