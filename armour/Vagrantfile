@@ -1,0 +1,84 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.require_version '>= 2.2.6'
+Vagrant.configure('2') do |config|
+  config.vm.box = 'generic/debian10'
+  config.vm.box_version = '3.4.4'
+  config.vm.box_check_update = false
+  config.vm.hostname = 'armor'
+
+  # ssh
+  config.ssh.insert_key = true
+  config.ssh.keep_alive = true
+  config.ssh.keys_only = true
+
+  # timeouts
+  config.vm.boot_timeout = 300
+  config.vm.graceful_halt_timeout = 60
+  config.ssh.connect_timeout = 15
+
+  config.vagrant.plugins = ['vagrant-vbguest']
+  config.vbguest.no_install = false
+
+  # shares
+  config.vm.synced_folder '.', '/vagrant'
+
+  config.cache.scope :box if Vagrant.has_plugin?('vagrant-cachier')
+
+  # network
+
+  config.vm.provider 'virtualbox' do |vb|
+    # vb.gui = true
+    # vb.memory = "4096"
+    # vb.cpus = 2
+    vb.gui = false
+    vb.memory = '1024'
+    vb.cpus = 1
+    vb.name = 'armor'
+    vb.customize ['modifyvm', :id, '--cpuhotplug', 'on']
+    vb.customize ['setextradata', 'global', :id, 'VBoxInternal2/Watchdog/BalloonCtrl/BalloonSizeMax', '2048']
+  end
+
+  config.vm.provision 'i2p-install', type: 'shell', name: 'i2p-install', privileged: false, reboot: false,
+                                     inline: <<-SHELL
+    sudo apt update && sudo apt upgrade -y
+    sudo apt install -y apt-transport-https curl lynx w3m vim tmux
+    maindeb https://deb.i2p2.de/ buster
+    deb-src https://deb.i2p2.de/ buster main
+    curl -o i2p-debian-repo.key.asc https://geti2p.net/_static/i2p-debian-repo.key.asc
+    gpg -n --import --import-options import-show i2p-debian-repo.key.asc
+    sudo apt-key add i2p-debian-repo.key.asc
+    sudo apt update
+    sudo apt install -y i2p
+    # sudo dpkg-reconfigure i2p
+    # i2prouter install && i2prouter start
+                                     SHELL
+
+  config.vm.provision 'i2p-config-copy', after: 'i2p-install', type: 'shell', privileged: false,
+                                         name: 'i2p-config-copy', reboot: false, inline: <<-SHELL
+    sudo cp /vagrant/clients.config /var/lib/i2p/i2p-config/clients.config
+    sudo cp /vagrant/wrapper.config /etc/i2p/wrapper.config
+    sudo systemctl enable i2p
+    sudo systemctl start i2p
+    i2prouter restart
+                                         SHELL
+
+  config.vm.provision 'misc-install', after: 'i2p-config-copy', type: 'shell', privileged: false,
+                                      name: 'misc-iinstall', reboot: false, inline: <<-SHELL
+    sudo apt install tor torsocks pidgin pidgin-otr proxychains macchanger secure-delete git firefox-esr
+    sudo systemctl enable tor && sudo systemctl restart tor
+    cd ~ &&\
+      git clone https://github.com/BlackArch/torctl &&\
+      cd torctl &&\
+      sudo mv service/* /etc/systemd/system/ &&\
+      sudo mv bash-completion/torctl /usr/share/bash-completion/completions/torctl &&\
+      sed -i 's/start_service iptables//' torctl &&\
+      sed -i 's/TOR_UID="tor"/TOR_UID="debian-tor"/' torctl' &&\
+      sudo mv torctl /usr/bin/torctl
+    cd ~ &&\
+      mkdir ff-addons &&\
+      cd ff-addons &&\
+      wget https://addons.mozilla.org/firefox/downle/3616824/foxyproxy_standard-7.5.1-an+fx.xpi
+                                      SHELL
+end
