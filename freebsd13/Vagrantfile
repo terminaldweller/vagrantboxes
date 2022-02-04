@@ -3,7 +3,6 @@
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
 MOUNT_POINT = '/home/vagrant/ff'
-ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
 CPU_COUNT = 1
 MEMORY = 1024
 
