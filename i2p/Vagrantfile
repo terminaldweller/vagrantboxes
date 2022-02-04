@@ -1,12 +1,13 @@
-# -*- mode: ruby -*-
 # vi: set ft=ruby :
+# frozen_string_literal: true
 
-Vagrant.require_version ">= 2.2.6"
-Vagrant.configure("2") do |config|
-  config.vm.box = "bento/debian-10"
-  config.vm.box_version = "202107.08.0"
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+Vagrant.require_version '>= 2.2.6'
+Vagrant.configure('2') do |config|
+  config.vm.box = 'generic/debian10'
+  config.vm.box_version = '3.6.6'
   config.vm.box_check_update = false
-  config.vm.hostname = "i2ptun"
+  config.vm.hostname = 'i2ptun'
 
   # ssh
   config.ssh.insert_key = true
@@ -18,32 +19,36 @@ Vagrant.configure("2") do |config|
   config.vm.graceful_halt_timeout = 60
   config.ssh.connect_timeout = 15
 
-  config.vagrant.plugins = ["vagrant-vbguest"]
-  config.vbguest.no_install = true
-
   # shares
-  config.vm.synced_folder ".", "/vagrant"
+  config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udd: false
 
   # network
-  config.vm.network "forwarded_port", guest: 4444, host: 4444, id: "i2ptunudp", protocol: "udp"
-  config.vm.network "forwarded_port", guest: 4444, host: 4444, id: "i2ptuntcp", protocol: "tcp"
-  config.vm.network "forwarded_port", guest: 4445, host: 4445, id: "i2ptunhttpsudp", protocol: "udp"
-  config.vm.network "forwarded_port", guest: 4445, host: 4445, id: "i2ptunhttpstcp", protocol: "tcp"
-  config.vm.network "forwarded_port", guest: 6668, host: 6668, id: "i2ptunircudp", protocol: "udp"
-  config.vm.network "forwarded_port", guest: 6668, host: 6668, id: "i2ptunirctcp", protocol: "tcp"
-  config.vm.network "forwarded_port", guest: 7654, host: 7654, id: "i2ptuni2pudp", protocol: "udp"
-  config.vm.network "forwarded_port", guest: 7654, host: 7654, id: "i2ptuni2ptcp", protocol: "tcp"
-  config.vm.network "forwarded_port", guest: 7657, host: 7657, id: "i2ptunadminudp", protocol: "udp"
-  config.vm.network "forwarded_port", guest: 7657, host: 7657, id: "i2ptunadmintcp", protocol: "tcp"
+  config.vm.network 'forwarded_port', guest: 4444, host: 4444, id: 'i2ptunudp', protocol: 'udp'
+  config.vm.network 'forwarded_port', guest: 4444, host: 4444, id: 'i2ptuntcp', protocol: 'tcp'
+  config.vm.network 'forwarded_port', guest: 4445, host: 4445, id: 'i2ptunhttpsudp', protocol: 'udp'
+  config.vm.network 'forwarded_port', guest: 4445, host: 4445, id: 'i2ptunhttpstcp', protocol: 'tcp'
+  config.vm.network 'forwarded_port', guest: 6668, host: 6668, id: 'i2ptunircudp', protocol: 'udp'
+  config.vm.network 'forwarded_port', guest: 6668, host: 6668, id: 'i2ptunirctcp', protocol: 'tcp'
+  config.vm.network 'forwarded_port', guest: 7654, host: 7654, id: 'i2ptuni2pudp', protocol: 'udp'
+  config.vm.network 'forwarded_port', guest: 7654, host: 7654, id: 'i2ptuni2ptcp', protocol: 'tcp'
+  config.vm.network 'forwarded_port', guest: 7657, host: 7657, id: 'i2ptunadminudp', protocol: 'udp'
+  config.vm.network 'forwarded_port', guest: 7657, host: 7657, id: 'i2ptunadmintcp', protocol: 'tcp'
 
-  config.vm.provider "virtualbox" do |vb|
-   vb.gui = false
-   vb.memory = "768"
-   vb.cpus = 1
-   # vb.name = "i2ptun"
+  config.vagrant.plugins = [{ 'vagrant-libvirt' => { 'version' => '^0.6.2' } }]
+
+  config.vm.provider 'libvirt' do |libvirt|
+    libvirt.default_prefix = 'i2ptun-'
+    libvirt.driver = 'kvm'
+    libvirt.memory = '768'
+    libvirt.cpus = 1
+    libvirt.sound_type = nil
+    libvirt.qemuargs value: '-nographic'
+    libvirt.qemuargs value: '-nodefaults'
+    libvirt.qemuargs value: '-no-user-config'
+    libvirt.random model: 'random'
   end
 
-  config.vm.provision "i2p-install",type: "shell", name: "i2p-install", inline: <<-SHELL
+  config.vm.provision 'i2p-install', type: 'shell', name: 'i2p-install', inline: <<-SHELL
     sudo apt update && sudo apt upgrade -y
     sudo apt install -y apt-transport-https curl lynx w3m vim tmux
     maindeb https://deb.i2p2.de/ buster
@@ -57,11 +62,12 @@ Vagrant.configure("2") do |config|
     # i2prouter install && i2prouter start
   SHELL
 
-  config.vm.provision "i2p-config-copy",after: "i2p-install", type: "shell", privileged: false, name: "i2p-config-copy", reboot: false, inline: <<-SHELL
+  config.vm.provision 'i2p-config-copy', after: 'i2p-install', type: 'shell', privileged: false,
+                                         name: 'i2p-config-copy', reboot: false, inline: <<-SHELL
     sudo cp /vagrant/clients.config /var/lib/i2p/i2p-config/clients.config
     sudo cp /vagrant/wrapper.config /etc/i2p/wrapper.config
     sudo systemctl enable i2p
     sudo systemctl start i2p
     i2prouter restart
-  SHELL
+                                         SHELL
 end
