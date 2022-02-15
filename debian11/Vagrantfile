@@ -38,11 +38,11 @@ Vagrant.configure('2') do |config|
     # libvirt.qemuargs value: '-chardev'
     # libvirt.qemuargs value: 'pci-serial,chardev=hostusbserial'
     libvirt.qemuargs value: '-serial'
-    libvirt.qemuargs value: 'telnet:localhost:4321,server,nowait'
+    libvirt.qemuargs value: 'telnet::4321,server,nowait'
     libvirt.random model: 'random'
   end
 
-  config.vm.provision 'i2p-install', type: 'shell', name: 'i2p-install', inline: <<-SHELL
-    sudo apt update && sudo apt upgrade -y
-  SHELL
+  # config.vm.provision 'i2p-install', type: 'shell', name: 'i2p-install', inline: <<-SHELL
+  #   sudo apt update && sudo apt upgrade -y
+  # SHELL
 end

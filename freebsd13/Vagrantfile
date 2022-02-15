@@ -49,5 +49,6 @@ Vagrant.configure('2') do |config|
   config.vm.provision 'provision', type: 'shell', name: 'provision', privileged: false, reboot: false, inline: <<-SHELL
     set -ex
     sudo pkg update && sudo pkg upgrade -y
+    sudo pkg install -y pkgconf gcc gmake git wget curl vim tmux ncurses readline
   SHELL
 end
