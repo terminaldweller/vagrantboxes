@@ -1,23 +1,48 @@
-# -*- mode: ruby -*-
 # vi: set ft=ruby :
+# frozen_string_literal: true
 
-Vagrant.configure("2") do |config|
-
-  config.vm.box = "debian/buster64"
-
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+Vagrant.require_version '>= 2.2.6'
+Vagrant.configure('2') do |config|
+  config.vm.box = 'generic/debian10'
+  config.vm.box_version = '3.6.6'
   config.vm.box_check_update = false
+  config.vm.hostname = 'virt-deb10'
 
-  config.vm.network "public_network"
+  # ssh
+  config.ssh.insert_key = true
+  config.ssh.keep_alive = true
+  config.ssh.keys_only = true
 
-   config.vm.provider "virtualbox" do |vb|
-     vb.gui = false
-     vb.memory = "1024"
-   end
+  # timeouts
+  config.vm.boot_timeout = 300
+  config.vm.graceful_halt_timeout = 60
+  config.ssh.connect_timeout = 15
 
-  config.vm.provision "shell", inline: <<-SHELL
-    sudo apt update && sudo apt upgrade -y
-    sudo apt install -y ksh wget curl vim tmux apt-file git python3 python3-pip
-    sudo apt-file update
-    echo "set -g default-terminal screen-256" > ~/.tmux.conf
-  SHELL
+  # shares
+  config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
+
+  config.vagrant.plugins = ['vagrant-reload', { 'vagrant-libvirt' => { 'version' => '^0.6.2' } }]
+
+  config.vm.provider 'libvirt' do |libvirt|
+    libvirt.default_prefix = 'deb10-'
+    libvirt.driver = 'kvm'
+    libvirt.memory = '512'
+    libvirt.cpus = 1
+    libvirt.sound_type = nil
+    libvirt.qemuargs value: '-nographic'
+    libvirt.qemuargs value: '-nodefaults'
+    libvirt.qemuargs value: '-no-user-config'
+    # libvirt.qemuargs value: '-chardev'
+    # libvirt.qemuargs value: 'serial,path=/dev/ttyS0,id=hostusbserial'
+    # libvirt.qemuargs value: '-chardev'
+    # libvirt.qemuargs value: 'pci-serial,chardev=hostusbserial'
+    libvirt.qemuargs value: '-serial'
+    libvirt.qemuargs value: 'telnet::4329,server,nowait'
+    libvirt.random model: 'random'
+  end
+
+  # config.vm.provision 'i2p-install', type: 'shell', name: 'i2p-install', inline: <<-SHELL
+  #   sudo apt update && sudo apt upgrade -y
+  # SHELL
 end
