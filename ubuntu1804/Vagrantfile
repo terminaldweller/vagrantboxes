@@ -2,18 +2,12 @@
 # frozen_string_literal: true
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
-# Vagrant::DEFAULT_SERVER_URL.replace('https://vagrantcloud.com')
 Vagrant.require_version '>= 2.2.6'
 Vagrant.configure('2') do |config|
-  config.vm.box = 'generic/alpine315'
-  config.vm.box_version = '3.6.14'
+  config.vm.box = 'generic/ubuntu1804'
+  config.vm.box_version = '4.0.2'
   config.vm.box_check_update = false
-  config.vm.hostname = 'virt-tiny'
-
-  if Vagrant.has_plugin?('vagrant-proxyconf')
-    config.proxy.http = 'socks5://192.168.1.103:9050'
-    config.proxy.https = 'socks5://192.168.1.103:9050'
-  end
+  config.vm.hostname = 'virt-ubuntu18'
 
   # ssh
   config.ssh.insert_key = true
@@ -26,12 +20,12 @@ Vagrant.configure('2') do |config|
   config.ssh.connect_timeout = 15
 
   # shares
-  config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
+  # config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 3, nfs_udp: false
 
   config.vagrant.plugins = ['vagrant-reload', { 'vagrant-libvirt' => { 'version' => '^0.6.2' } }]
 
   config.vm.provider 'libvirt' do |libvirt|
-    libvirt.default_prefix = 'tiny-'
+    libvirt.default_prefix = 'ubuntu18-'
     libvirt.driver = 'kvm'
     libvirt.memory = '512'
     libvirt.cpus = 1
@@ -39,13 +33,16 @@ Vagrant.configure('2') do |config|
     libvirt.qemuargs value: '-nographic'
     libvirt.qemuargs value: '-nodefaults'
     libvirt.qemuargs value: '-no-user-config'
-    libvirt.qemuargs value: '-serial'
-    libvirt.qemuargs value: 'telnet::4323,server,nowait'
+    # libvirt.qemuargs value: '-chardev'
+    # libvirt.qemuargs value: 'serial,path=/dev/ttyS0,id=hostusbserial'
+    # libvirt.qemuargs value: '-chardev'
+    # libvirt.qemuargs value: 'pci-serial,chardev=hostusbserial'
+    # libvirt.qemuargs value: '-serial'
+    # libvirt.qemuargs value: 'telnet::4332,server,nowait'
     libvirt.random model: 'random'
   end
 
-  config.vm.provision 'update-upgrade', type: 'shell', name: 'update-upgrade', inline: <<-SHELL
-    sudo apk update && sudo apk upgrade
-    sudo apk add torsocks irssi tmux
-  SHELL
+  # config.vm.provision 'i2p-install', type: 'shell', name: 'i2p-install', inline: <<-SHELL
+  #   sudo apt update && sudo apt upgrade -y
+  # SHELL
 end

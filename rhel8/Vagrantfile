@@ -20,9 +20,8 @@ Vagrant.configure('2') do |config|
   config.ssh.connect_timeout = 15
 
   if Vagrant.has_plugin?('vagrant-proxyconf')
-    config.proxy.http = 'http://192.168.1.103:9995'
-    config.proxy.https = 'http://192.168.1.103:9995'
-    # config.proxy.noproxy = '127.0.0.1, localhost'
+    # config.proxy.http = 'http://192.168.1.103:9995'
+    # config.proxy.https = 'http://192.168.1.103:9995'
   end
 
   # shares
