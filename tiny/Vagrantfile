@@ -5,14 +5,14 @@ ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
 # Vagrant::DEFAULT_SERVER_URL.replace('https://vagrantcloud.com')
 Vagrant.require_version '>= 2.2.6'
 Vagrant.configure('2') do |config|
-  config.vm.box = 'generic/alpine315'
-  config.vm.box_version = '3.6.14'
+  config.vm.box = 'generic/alpine316'
+  config.vm.box_version = '4.0.2'
   config.vm.box_check_update = false
   config.vm.hostname = 'virt-tiny'
 
   if Vagrant.has_plugin?('vagrant-proxyconf')
-    config.proxy.http = 'socks5://192.168.1.103:9050'
-    config.proxy.https = 'socks5://192.168.1.103:9050'
+    config.proxy.http = 'socks5://192.168.1.103:9995'
+    config.proxy.https = 'socks5://192.168.1.103:9995'
   end
 
   # ssh
