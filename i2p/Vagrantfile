@@ -39,40 +39,40 @@ Vagrant.configure('2') do |config|
   config.vm.provider 'libvirt' do |libvirt|
     libvirt.default_prefix = 'i2ptun-'
     libvirt.driver = 'kvm'
-    libvirt.memory = '1024'
-    libvirt.cpus = 1
+    libvirt.memory = '3076'
+    libvirt.cpus = 2
     libvirt.sound_type = nil
-    libvirt.qemuargs value: '-nographic'
+    # libvirt.qemuargs value: '-nographic'
     libvirt.qemuargs value: '-nodefaults'
     libvirt.qemuargs value: '-no-user-config'
     libvirt.random model: 'random'
   end
 
-  config.vm.provision 'i2p-install', type: 'shell', name: 'i2p-install', inline: <<-SHELL
-    sudo apt update && sudo apt upgrade -y
-    sudo apt install -y apt-transport-https curl lynx w3m vim tmux
-    maindeb https://deb.i2p2.de/ buster
-    deb-src https://deb.i2p2.de/ buster main
-    curl -o i2p-debian-repo.key.asc https://geti2p.net/_static/i2p-debian-repo.key.asc
-    gpg -n --import --import-options import-show i2p-debian-repo.key.asc
-    sudo apt-key add i2p-debian-repo.key.asc
-    sudo apt update
-    sudo apt install -y i2p
-    # sudo dpkg-reconfigure i2p
-    # i2prouter install && i2prouter start
-  SHELL
+  # config.vm.provision 'i2p-install', type: 'shell', name: 'i2p-install', inline: <<-SHELL
+  #   sudo apt update && sudo apt upgrade -y
+  #   sudo apt install -y apt-transport-https curl lynx w3m vim tmux
+  #   maindeb https://deb.i2p2.de/ buster
+  #   deb-src https://deb.i2p2.de/ buster main
+  #   curl -o i2p-debian-repo.key.asc https://geti2p.net/_static/i2p-debian-repo.key.asc
+  #   gpg -n --import --import-options import-show i2p-debian-repo.key.asc
+  #   sudo apt-key add i2p-debian-repo.key.asc
+  #   sudo apt update
+  #   sudo apt install -y i2p
+  #   # sudo dpkg-reconfigure i2p
+  #   # i2prouter install && i2prouter start
+  # SHELL
 
-  config.vm.provision 'i2p-config-copy', after: 'i2p-install', type: 'shell', privileged: false,
-                                         name: 'i2p-config-copy', reboot: false, inline: <<-SHELL
-    sudo cp /vagrant/clients.config /var/lib/i2p/i2p-config/clients.config
-    sudo cp /vagrant/wrapper.config /etc/i2p/wrapper.config
-    sudo systemctl enable i2p
-    sudo systemctl start i2p
-    i2prouter restart
-                                         SHELL
+  # config.vm.provision 'i2p-config-copy', after: 'i2p-install', type: 'shell', privileged: false,
+  #                                        name: 'i2p-config-copy', reboot: false, inline: <<-SHELL
+  #   sudo cp /vagrant/clients.config /var/lib/i2p/i2p-config/clients.config
+  #   sudo cp /vagrant/wrapper.config /etc/i2p/wrapper.config
+  #   sudo systemctl enable i2p
+  #   sudo systemctl start i2p
+  #   i2prouter restart
+  #                                        SHELL
 
   config.vm.provision 'firefox', after: 'i2p-config-copy', type: 'shell', privileged: false, name: 'firefox',
                                  reboot: false, inline: <<-SHELL
-    sudo apt-get install -y firefox-esr
+    sudo apt-get install -y firefox-esr xauth xorg i2pd
                                  SHELL
 end

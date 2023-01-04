@@ -4,7 +4,7 @@
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
 MOUNT_POINT = '/home/vagrant/ff'
 CPU_COUNT = 1
-MEMORY = 512
+MEMORY = 128
 
 Vagrant.require_version '>= 2.2.6'
 Vagrant.configure('2') do |config|
