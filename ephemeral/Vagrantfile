@@ -41,7 +41,8 @@ Vagrant.configure('2') do |config|
     libvirt.qemuargs value: '-nodefaults'
     libvirt.qemuargs value: '-no-user-config'
     libvirt.qemuargs value: '-serial'
-    libvirt.qemuargs value: 'telnet::5323,server,nowait'
+    # libvirt.qemuargs value: 'telnet::5323,server,nowait'
+    libvirt.qemuargs value: 'pty'
     libvirt.random model: 'random'
   end
 
