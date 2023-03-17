@@ -22,8 +22,6 @@ Vagrant.configure('2') do |config|
   # shares
   config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
 
-  config.vagrant.plugins = ['vagrant-reload', { 'vagrant-libvirt' => { 'version' => '^0.6.2' } }]
-
   config.vm.provider 'libvirt' do |libvirt|
     libvirt.default_prefix = 'ubuntu22-'
     libvirt.driver = 'kvm'

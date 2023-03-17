@@ -35,5 +35,6 @@ Vagrant.configure('2') do |config|
     libvirt.qemuargs value: '-no-user-config'
     libvirt.qemuargs value: '-serial'
     libvirt.qemuargs value: 'pty'
+    # libvirt.usb :vendor => '0x2357', :product => '0x010c'
   end
 end

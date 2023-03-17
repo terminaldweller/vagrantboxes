@@ -41,9 +41,10 @@ Vagrant.configure('2') do |config|
     libvirt.qemuargs value: '-nodefaults'
     libvirt.qemuargs value: '-no-user-config'
     libvirt.qemuargs value: '-serial'
-    # libvirt.qemuargs value: 'telnet::5323,server,nowait'
     libvirt.qemuargs value: 'pty'
     libvirt.random model: 'random'
+    # setting this will also remove the ability to run provisioning according to docs
+    # libvirt.mgmt_attach = false
   end
 
   # config.vm.provision 'update-upgrade', type: 'shell', name: 'update-upgrade', inline: <<-SHELL
