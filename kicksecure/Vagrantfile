@@ -1,0 +1,82 @@
+# vi: set ft=ruby :
+# frozen_string_literal: true
+
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+Vagrant.require_version '>= 2.2.6'
+Vagrant.configure('2') do |config|
+  config.vm.box = 'generic/debian12'
+  config.vm.box_version = '4.3.8'
+  config.vm.box_check_update = false
+  config.vm.hostname = 'virt-kick'
+
+  # ssh
+  config.ssh.insert_key = true
+  config.ssh.keep_alive = true
+  config.ssh.keys_only = true
+
+  # timeouts
+  config.vm.boot_timeout = 300
+  config.vm.graceful_halt_timeout = 60
+  config.ssh.connect_timeout = 15
+
+  config.vm.network 'forwarded_port', guest: 7070, host: 7070, protocol: 'tcp', atuo_correct: true
+  config.vm.network 'forwarded_port', guest: 4444, host: 4444, protocol: 'tcp', atuo_correct: true
+  config.vm.network 'forwarded_port', guest: 4447, host: 4447, protocol: 'tcp', atuo_correct: true
+
+  # shares
+  # config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
+
+  config.vm.provider 'libvirt' do |libvirt|
+    libvirt.default_prefix = 'kick-'
+    libvirt.driver = 'kvm'
+    libvirt.memory = '512'
+    libvirt.cpus = 2
+    libvirt.sound_type = nil
+    libvirt.qemuargs value: '-nographic'
+    libvirt.qemuargs value: '-nodefaults'
+    libvirt.qemuargs value: '-no-user-config'
+    libvirt.qemuargs value: '-serial'
+    libvirt.qemuargs value: 'pty'
+    libvirt.random model: 'random'
+  end
+
+  config.vm.provision 'kicksecure-pre-install', type: 'shell', name: 'kicksecure-pre-install', inline: <<-SHELL
+    set -ex
+    export DEBIAN_FRONTEND=noninteractive
+    sudo apt update && sudo -E apt upgrade -y && \
+      sudo -E apt full-upgrade -y && \
+      sudo -E apt install --no-install-recommends -y sudo adduser extrepo apt-transport-tor tor
+    sudo adduser user
+    sudo addgroup --system console
+    sudo usermod -aG console user
+    sudo usermod -aG sudo user
+    sudo extrepo enable kicksecure
+    sudo apt update
+  SHELL
+
+  config.vm.provision 'privileged', type: 'shell', name: 'privileged', privileged: true , inline: <<-SHELL
+    set -ex
+    echo tor+http://deb.w5j6stm77zs6652pgsij4awcjeel3eco7kvipheu6mtr623eyyehj4yd.onion >> /etc/apt/sources.list.d/extrepo_kicksecure.sources
+  SHELL
+
+  config.vm.provision 'kicksecure-install', type: 'shell', name: 'kicksecure-install', inline: <<-SHELL
+    set -ex
+    sudo DEBIAN_FRONTEND=noninteractive apt install -y kicksecure-cli-vm
+    sudo extrepo disable kicksecure 
+  SHELL
+
+
+  config.vm.provision 'privileged', type: 'shell', name: 'privileged', privileged: true , inline: <<-SHELL
+    set -ex
+    echo deb tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian bullseye main contrib non-free > /etc/apt/sources.list.d/debian.list
+    echo deb tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian bullseye-updates main contrib non-free >> /etc/apt/sources.list.d/debian.list
+    echo deb tor+http://5ajw6aqf3ep7sijnscdzw77t7xq4xjpsy335yb2wiwgouo7yfxtjlmid.onion/debian-security bullseye-security main contrib non-free >> /etc/apt/sources.list.d/debian.list
+    echo deb tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian bullseye-backports main contrib non-free >> /etc/apt/sources.list.d/debian.list
+    apt update && apt full-upgrade -y
+  SHELL
+
+  config.vm.provision 'kicksecure-install', type: 'shell', name: 'kicksecure-install', inline: <<-SHELL
+    set -ex
+    sudo apt install -y tmux vim w3m curl wget
+  SHELL
+end

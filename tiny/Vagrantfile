@@ -26,9 +26,7 @@ Vagrant.configure('2') do |config|
   config.ssh.connect_timeout = 15
 
   # shares
-  config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
-
-  config.vagrant.plugins = ['vagrant-reload', { 'vagrant-libvirt' => { 'version' => '^0.6.2' } }]
+  # config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
 
   config.vm.provider 'libvirt' do |libvirt|
     libvirt.default_prefix = 'tiny-'
@@ -44,8 +42,8 @@ Vagrant.configure('2') do |config|
     libvirt.random model: 'random'
   end
 
-  config.vm.provision 'update-upgrade', type: 'shell', name: 'update-upgrade', inline: <<-SHELL
-    sudo apk update && sudo apk upgrade
-    sudo apk add torsocks irssi tmux
-  SHELL
+  # config.vm.provision 'update-upgrade', type: 'shell', name: 'update-upgrade', inline: <<-SHELL
+  #   sudo apk update && sudo apk upgrade
+  #   sudo apk add torsocks irssi tmux
+  # SHELL
 end
