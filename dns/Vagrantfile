@@ -1,0 +1,58 @@
+# vi: set ft=ruby :
+# frozen_string_literal: true
+
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+Vagrant.require_version '>= 2.2.6'
+Vagrant.configure('2') do |config|
+  config.vm.box = 'generic/alpine319'
+  config.vm.box_version = '4.3.12'
+  config.vm.box_check_update = false
+  config.vm.hostname = 'virt-dns'
+
+  # ssh
+  config.ssh.insert_key = true
+  config.ssh.keep_alive = true
+  config.ssh.keys_only = true
+
+  # timeouts
+  config.vm.boot_timeout = 300
+  config.vm.graceful_halt_timeout = 60
+  config.ssh.connect_timeout = 30
+
+  # shares
+  config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
+
+
+  config.vm.provider 'libvirt' do |libvirt|
+    libvirt.storage_pool_name = 'ramdisk'
+    libvirt.default_prefix = 'dns-'
+    libvirt.driver = 'kvm'
+    libvirt.memory = '256'
+    libvirt.cpus = 2
+    libvirt.sound_type = nil
+    libvirt.qemuargs value: '-nographic'
+    libvirt.qemuargs value: '-nodefaults'
+    libvirt.qemuargs value: '-no-user-config'
+    libvirt.qemuargs value: '-serial'
+    libvirt.qemuargs value: 'pty'
+    libvirt.random model: 'random'
+  end
+
+  config.vm.provision 'reqs', type: 'shell', name: 'reqs-install', inline: <<-SHELL
+    sudo apk update &&\
+      sudo apk upgrade &&\
+      sudo apk add tor dnscrypt-proxy privoxy tmux
+  SHELL
+
+  config.vm.provision 'reqs-priv', type: 'shell', name: 'reqs-priv-install', privileged: true, inline: <<-SHELL
+    cp /vagrant/torrc /etc/tor/torrc
+    cp /vagrant/dnscrypt-proxy.toml /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+    #cp /vagrant/config /etc/privoxy/config
+    rc-service tor start
+    sleep 1
+    #rc-service privoxy start
+    #sleep 1
+    rc-service dnscrypt-proxy start
+  SHELL
+
+end
