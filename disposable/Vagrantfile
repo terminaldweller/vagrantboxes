@@ -76,29 +76,45 @@ Vagrant.configure('2') do |config|
     rc-service openvpn start || true
     sleep 1
 
-    ufw allow 22
-    ufw enable
-
     cp /vagrant/bw_firefox /usr/bin/
-  SHELL
-
-  config.vm.provision 'mullvad-test', type: 'shell', name: 'test', privileged: false, inline: <<-SHELL
-    set -ex
-    curl --connect-timeout 10 https://am.i.mullvad.net/connected | grep -i "you\ are\ connected"
   SHELL
 
   config.vm.provision 'kill-switch', communicator_required: false, type: 'shell', name: 'kill-switch', privileged: true, inline: <<-SHELL
     # http://o54hon2e2vj6c7m3aqqu6uyece65by3vgoxxhlqlsvkmacw6a7m7kiad.onion/en/help/linux-openvpn-installation
     set -ex
-    iptables -P OUTPUT DROP
-    iptables -A OUTPUT -o tun+ -j ACCEPT
-    iptables -A INPUT -i lo -j ACCEPT
-    iptables -A OUTPUT -o lo -j ACCEPT
-    iptables -A OUTPUT -d 255.255.255.255 -j ACCEPT
-    iptables -A INPUT -s 255.255.255.255 -j ACCEPT
-    iptables -A OUTPUT -o eth+ -p udp -m multiport --dports 53,1300:1302,1194:1197 -d 141.98.255.0/24,193.138.218.0/24,45.83.220.0/24,185.213.152.0/24,185.213.154.0/24,185.65.135.0/24,185.65.134.0/24 -j ACCEPT
-    iptables -A OUTPUT -o eth+ -p tcp -m multiport --dports 53,443 -d 141.98.255.0/24,193.138.218.0/24,45.83.220.0/24,185.213.152.0/24,185.213.154.0/24,185.65.135.0/24,185.65.134.0/24 -j ACCEPT
-    ip6tables -P OUTPUT DROP
-    ip6tables -A OUTPUT -o tun+ -j ACCEPT
+    ufw --force reset
+    ufw default deny incoming
+    ufw default deny outgoing
+    ufw allow in on tun0
+    ufw allow out on tun0
+    # enable libvirt bridge
+    ufw allow in on eth0 from 192.168.121.1
+    ufw allow out on eth0 to 192.168.121.1
+    # server block
+    ufw allow out on eth0 to 185.204.1.174 port 443
+    ufw allow in on eth0 from 185.204.1.174 port 443
+    ufw allow out on eth0 to 185.204.1.176 port 443
+    ufw allow in on eth0 from 185.204.1.176 port 443
+    ufw allow out on eth0 to 185.204.1.172 port 443
+    ufw allow in on eth0 from 185.204.1.172 port 443
+    ufw allow out on eth0 to 185.204.1.171 port 443
+    ufw allow in on eth0 from 185.204.1.171 port 443
+    ufw allow out on eth0 to 185.212.149.201 port 443
+    ufw allow in on eth0 from 185.212.149.201 port 443
+    ufw allow out on eth0 to 185.204.1.173 port 443
+    ufw allow in on eth0 from 185.204.1.173 port 443
+    ufw allow out on eth0 to 193.138.7.237 port 443
+    ufw allow in on eth0 from 193.138.7.237 port 443
+    ufw allow out on eth0 to 193.138.7.217 port 443
+    ufw allow in on eth0 from 193.138.7.217 port 443
+    ufw allow out on eth0 to 185.204.1.175 port 443
+    ufw allow in on eth0 from 185.204.1.175 port 443
+
+    echo y | ufw enable
+  SHELL
+
+  config.vm.provision 'mullvad-test', type: 'shell', name: 'test', privileged: false, inline: <<-SHELL
+    set -ex
+    curl --connect-timeout 10 https://am.i.mullvad.net/connected | grep -i "you\ are\ connected"
   SHELL
 end
