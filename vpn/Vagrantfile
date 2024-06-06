@@ -38,12 +38,12 @@ Vagrant.configure('2') do |config|
 
   config.vm.provision 'update', type: 'shell', name: 'update', inline: <<-SHELL
     set -ex
-    sudo apk add openvpn nfs-utils
+    sudo apk add openvpn nfs-utils ufw
     mkdir -p /vagrant && \
       sudo mount -t nfs 192.168.121.1:/home/devi/share/nfs /vagrant
   SHELL
 
-  config.vm.provision 'update-root', type: 'shell', name: 'update-root', privileged: true, inline: <<-SHELL2
+  config.vm.provision 'update-root', type: 'shell', name: 'update-root', privileged: true, inline: <<-SHELL
     set -ex
     echo tun >> /etc/modules
     #rc-update add openvpn default
@@ -61,5 +61,37 @@ Vagrant.configure('2') do |config|
     sysctl -p /etc/sysctl.d/ipv4.conf
     rc-service openvpn start || true
     sleep 1
-  SHELL2
+  SHELL
+
+  config.vm.provision 'killswitch', type: 'shell', name: 'killswitch', privileged: true, inline: <<-SHELL
+    ufw --force reset
+    ufw default deny incoming
+    ufw default deny outgoing
+    ufw allow in on tun0
+    ufw allow out on tun0
+    # enable libvirt bridge
+    ufw allow in on eth0 from 192.168.121.1
+    ufw allow out on eth0 to 192.168.121.1
+    # server block
+    ufw allow out on eth0 to 185.204.1.174 port 443
+    ufw allow in on eth0 from 185.204.1.174 port 443
+    ufw allow out on eth0 to 185.204.1.176 port 443
+    ufw allow in on eth0 from 185.204.1.176 port 443
+    ufw allow out on eth0 to 185.204.1.172 port 443
+    ufw allow in on eth0 from 185.204.1.172 port 443
+    ufw allow out on eth0 to 185.204.1.171 port 443
+    ufw allow in on eth0 from 185.204.1.171 port 443
+    ufw allow out on eth0 to 185.212.149.201 port 443
+    ufw allow in on eth0 from 185.212.149.201 port 443
+    ufw allow out on eth0 to 185.204.1.173 port 443
+    ufw allow in on eth0 from 185.204.1.173 port 443
+    ufw allow out on eth0 to 193.138.7.237 port 443
+    ufw allow in on eth0 from 193.138.7.237 port 443
+    ufw allow out on eth0 to 193.138.7.217 port 443
+    ufw allow in on eth0 from 193.138.7.217 port 443
+    ufw allow out on eth0 to 185.204.1.175 port 443
+    ufw allow in on eth0 from 185.204.1.175 port 443
+
+    echo y | ufw enable
+  SHELL
 end

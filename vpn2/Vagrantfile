@@ -7,7 +7,7 @@ Vagrant.configure('2') do |config|
   config.vm.box = 'generic/alpine319'
   config.vm.box_version = '4.3.12'
   config.vm.box_check_update = false
-  config.vm.hostname = 'virt-vpn3'
+  config.vm.hostname = 'virt-vpn2'
 
   # ssh
   config.ssh.insert_key = true
@@ -23,7 +23,7 @@ Vagrant.configure('2') do |config|
   # config.vm.synced_folder './share', '/home/vagrant/nfs', type: 'nfs', nfs_version: 4, nfs_udp: false
 
   config.vm.provider 'libvirt' do |libvirt|
-    libvirt.default_prefix = 'vpn3-'
+    libvirt.default_prefix = 'vpn2-'
     libvirt.driver = 'kvm'
     libvirt.memory = '128'
     libvirt.cpus = 1
@@ -48,13 +48,13 @@ Vagrant.configure('2') do |config|
   echo tun >> /etc/modules
   #rc-update add openvpn default
   mkdir -p /tmp/mullvad/ && \
-    cp /vagrant/mullvad_openvpn_linux_se_got.zip /tmp/mullvad/ && \
+    cp /vagrant/mullvad_openvpn_linux_us_phx.zip /tmp/mullvad/ && \
     cd /tmp/mullvad && \
-    unzip mullvad_openvpn_linux_se_got.zip && \
-    mv mullvad_config_linux_se_got/mullvad_se_got.conf /etc/openvpn/openvpn.conf && \
-    mv mullvad_config_linux_se_got/mullvad_userpass.txt /etc/openvpn/ && \
-    mv mullvad_config_linux_se_got/mullvad_ca.crt /etc/openvpn/ && \
-    mv mullvad_config_linux_se_got/update-resolv-conf /etc/openvpn && \
+    unzip mullvad_openvpn_linux_us_phx.zip && \
+    mv mullvad_config_linux_us_phx/mullvad_us_phx.conf /etc/openvpn/openvpn.conf && \
+    mv mullvad_config_linux_us_phx/mullvad_userpass.txt /etc/openvpn/ && \
+    mv mullvad_config_linux_us_phx/mullvad_ca.crt /etc/openvpn/ && \
+    mv mullvad_config_linux_us_phx/update-resolv-conf /etc/openvpn && \
     chmod 755 /etc/openvpn/update-resolv-conf
   modprobe tun
   echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/ipv4.conf
@@ -73,14 +73,10 @@ Vagrant.configure('2') do |config|
     ufw allow in on eth0 from 192.168.121.1
     ufw allow out on eth0 to 192.168.121.1
     # server block
-    ufw allow out on eth0 to 185.213.154.131 port 1197
-    ufw allow in on eth0 from 185.213.154.131 port 1197
-    ufw allow out on eth0 to 185.213.154.133 port 1197
-    ufw allow in on eth0 from 185.213.154.133 port 1197
-    ufw allow out on eth0 to 185.213.154.134 port 1197
-    ufw allow in on eth0 from 185.213.154.134 port 1197
-    ufw allow out on eth0 to 185.213.154.132 port 1197
-    ufw allow in on eth0 from 185.213.154.132 port 1197
+    ufw allow out on eth0 to 198.54.133.34 port 1196
+    ufw allow in on eth0 from 198.54.133.34 port 1196
+    ufw allow out on eth0 to 198.54.133.66 port 1196
+    ufw allow in on eth0 from 198.54.133.66 port 1196
 
     echo y | ufw enable
   SHELL
