@@ -39,6 +39,10 @@ Vagrant.configure('2') do |config|
     libvirt.random model: 'random'
   end
 
+  config.vm.provision 'reqs-priv1', type: 'shell', name: 'reqs-priv-install1', privileged: true, inline: <<-SHELL
+    echo "nameserver 9.9.9.9" > /etc/resolv.conf
+  SHELL
+
   config.vm.provision 'reqs', type: 'shell', name: 'reqs-install', inline: <<-SHELL
     sudo apk update &&\
       sudo apk upgrade &&\

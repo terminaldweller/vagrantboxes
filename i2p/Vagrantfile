@@ -71,8 +71,8 @@ Vagrant.configure('2') do |config|
   #   i2prouter restart
   #                                        SHELL
 
-  config.vm.provision 'firefox', after: 'i2p-config-copy', type: 'shell', privileged: false, name: 'firefox',
-                                 reboot: false, inline: <<-SHELL
-    sudo apt-get install -y firefox-esr xauth xorg i2pd
-                                 SHELL
+  # config.vm.provision 'firefox', after: 'i2p-config-copy', type: 'shell', privileged: false, name: 'firefox',
+  #                                reboot: false, inline: <<-SHELL
+  #   sudo apt-get install -y firefox-esr xauth xorg i2pd
+  #                                SHELL
 end

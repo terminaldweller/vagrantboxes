@@ -2,19 +2,12 @@
 # frozen_string_literal: true
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
-# Vagrant::DEFAULT_SERVER_URL.replace('https://vagrantcloud.com')
 Vagrant.require_version '>= 2.2.6'
 Vagrant.configure('2') do |config|
-  config.vm.box = 'generic/alpine317'
-  # config.vm.box_version = '4.0.2'
-  config.vm.box_version = '4.2.14'
+  config.vm.box = 'generic/alpine319'
+  config.vm.box_version = '4.3.10'
   config.vm.box_check_update = false
   config.vm.hostname = 'virt-ephemeral'
-
-  # if Vagrant.has_plugin?('vagrant-proxyconf')
-  #   config.proxy.http = 'socks5://192.168.1.103:9995'
-  #   config.proxy.https = 'socks5://192.168.1.103:9995'
-  # end
 
   # ssh
   config.ssh.insert_key = true
@@ -29,7 +22,6 @@ Vagrant.configure('2') do |config|
   # shares
   # config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
 
-  # config.vagrant.plugins = ['vagrant-reload', { 'vagrant-libvirt' => { 'version' => '^0.6.2' } }]
 
   config.vm.provider 'libvirt' do |libvirt|
     libvirt.storage_pool_name = 'ramdisk'
@@ -44,12 +36,16 @@ Vagrant.configure('2') do |config|
     libvirt.qemuargs value: '-serial'
     libvirt.qemuargs value: 'pty'
     libvirt.random model: 'random'
-    # setting this will also remove the ability to run provisioning according to docs
-    # libvirt.mgmt_attach = false
   end
 
   # config.vm.provision 'update-upgrade', type: 'shell', name: 'update-upgrade', inline: <<-SHELL
   #   sudo apk update && sudo apk upgrade
-  #   sudo apk add torsocks irssi tmux
+  #   sudo apk add tor irssi tmux vim privoxy dnscrypt-proxy
+  # SHELL
+  # config.vm.provision 'privileged', type: 'shell', name: 'privileged', privileged: true, inline: <<-SHELL
+  #   cp /etc/tor/torrc.sample /etc/torrc/torrc
+  #   rc-service tor start
+  #   rc-service privoxy start
+  #   rc-service dnscrypt-proxy start
   # SHELL
 end

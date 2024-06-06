@@ -5,7 +5,7 @@ ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
 Vagrant.require_version '>= 2.2.6'
 Vagrant.configure('2') do |config|
   config.vm.box = 'generic/debian11'
-  config.vm.box_version = '4.0.4'
+  config.vm.box_version = '4.3.12'
   config.vm.box_check_update = false
   config.vm.hostname = 'virt-deb11'
 
@@ -19,38 +19,18 @@ Vagrant.configure('2') do |config|
   config.vm.graceful_halt_timeout = 60
   config.ssh.connect_timeout = 15
 
-  config.vm.network 'forwarded_port', guest: 7070, host: 7070, protocol: 'tcp', atuo_correct: true
-  config.vm.network 'forwarded_port', guest: 4444, host: 4444, protocol: 'tcp', atuo_correct: true
-  config.vm.network 'forwarded_port', guest: 4447, host: 4447, protocol: 'tcp', atuo_correct: true
-
-  # shares
-  # config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
-
-  config.vagrant.plugins = ['vagrant-reload', { 'vagrant-libvirt' => { 'version' => '^0.6.2' } }]
-
   config.vm.provider 'libvirt' do |libvirt|
     libvirt.default_prefix = 'deb11-'
     libvirt.driver = 'kvm'
-    libvirt.memory = '512'
-    libvirt.cpus = 1
+    libvirt.memory = '2048'
+    libvirt.cpus = 2
     libvirt.sound_type = nil
     libvirt.qemuargs value: '-nographic'
     libvirt.qemuargs value: '-nodefaults'
     libvirt.qemuargs value: '-no-user-config'
-    # libvirt.qemuargs value: '-chardev'
-    # libvirt.qemuargs value: 'serial,path=/dev/ttyS0,id=hostusbserial'
-    # libvirt.qemuargs value: '-chardev'
-    # libvirt.qemuargs value: 'pci-serial,chardev=hostusbserial'
     libvirt.qemuargs value: '-serial'
-    libvirt.qemuargs value: 'telnet::4321,server,nowait'
+    libvirt.qemuargs value: 'pty'
     libvirt.random model: 'random'
   end
 
-  config.vm.provision 'i2p-install', type: 'shell', name: 'i2p-install', inline: <<-SHELL
-    export DEBIAN_FRONTEND=noninteractive && \
-      sudo apt update && sudo apt upgrade -y && \
-      sudo apt install -y i2pd
-    sudo systemctl enable i2pd
-    sudo systemctl start i2pd
-  SHELL
 end
