@@ -1,0 +1,88 @@
+# vi: set ft=ruby :
+# frozen_string_literal: true
+
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+Vagrant.require_version '>= 2.2.6'
+Vagrant.configure('2') do |config|
+  config.vm.box = 'generic/alpine319'
+  config.vm.box_version = '4.3.12'
+  config.vm.box_check_update = false
+  config.vm.hostname = 'virt-vpn4'
+
+  # ssh
+  config.ssh.insert_key = true
+  config.ssh.keep_alive = true
+  config.ssh.keys_only = true
+
+  # timeouts
+  config.vm.boot_timeout = 300
+  config.vm.graceful_halt_timeout = 60
+  config.ssh.connect_timeout = 15
+
+  # shares
+  # config.vm.synced_folder './share', '/home/vagrant/nfs', type: 'nfs', nfs_version: 4, nfs_udp: false
+
+  config.vm.provider 'libvirt' do |libvirt|
+    libvirt.default_prefix = 'vpn4-'
+    libvirt.driver = 'kvm'
+    libvirt.memory = '128'
+    libvirt.cpus = 1
+    libvirt.sound_type = nil
+    libvirt.qemuargs value: '-nographic'
+    libvirt.qemuargs value: '-nodefaults'
+    libvirt.qemuargs value: '-no-user-config'
+    libvirt.qemuargs value: '-serial'
+    libvirt.qemuargs value: 'pty'
+    # libvirt.random model: 'random'
+  end
+
+  config.vm.provision 'update', type: 'shell', name: 'update', inline: <<-SHELL
+  set -ex
+  sudo apk add openvpn nfs-utils ufw
+  mkdir -p /vagrant && \
+    sudo mount -t nfs 192.168.121.1:/home/devi/share/nfs /vagrant
+  SHELL
+
+  config.vm.provision 'update-root', type: 'shell', name: 'update-root', privileged: true, inline: <<-SHELL
+  set -ex
+  echo tun >> /etc/modules
+  #rc-update add openvpn default
+  mkdir -p /tmp/mullvad/ && \
+    cp /vagrant/mullvad_openvpn_linux_ca_tor.zip /tmp/mullvad/ && \
+    cd /tmp/mullvad && \
+    unzip mullvad_openvpn_linux_ca_tor.zip && \
+    mv mullvad_config_linux_ca_tor/mullvad_ca_tor.conf /etc/openvpn/openvpn.conf && \
+    mv mullvad_config_linux_ca_tor/mullvad_userpass.txt /etc/openvpn/ && \
+    mv mullvad_config_linux_ca_tor/mullvad_ca.crt /etc/openvpn/ && \
+    mv mullvad_config_linux_ca_tor/update-resolv-conf /etc/openvpn && \
+    chmod 755 /etc/openvpn/update-resolv-conf
+  modprobe tun
+  echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/ipv4.conf
+  sysctl -p /etc/sysctl.d/ipv4.conf
+  rc-service openvpn start || true
+  sleep 1
+  SHELL
+
+  config.vm.provision 'killswitch', type: 'shell', name: 'killswitch', privileged: true, inline: <<-SHELL
+    set -ex
+    ufw --force reset
+    ufw default deny incoming
+    ufw default deny outgoing
+    ufw allow in on tun0
+    ufw allow out on tun0
+    # enable libvirt bridge
+    ufw allow in on eth0 from 192.168.121.1
+    ufw allow out on eth0 to 192.168.121.1
+    # server block
+    ufw allow out on eth0 to 178.249.214.206 port 1302
+    ufw allow in on eth0 from 178.249.214.206 port 1302
+    ufw allow out on eth0 to 178.249.214.193 port 1302
+    ufw allow in on eth0 from 178.249.214.193 port 1302
+    ufw allow out on eth0 to 198.54.132.34 port 1302
+    ufw allow in on eth0 from 198.54.132.34 port 1302
+    ufw allow out on eth0 to 198.54.132.66 port 1302
+    ufw allow in on eth0 from 198.54.132.66 port 1302
+
+    echo y | ufw enable
+  SHELL
+end
