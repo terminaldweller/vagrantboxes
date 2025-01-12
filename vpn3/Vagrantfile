@@ -23,6 +23,7 @@ Vagrant.configure('2') do |config|
   # config.vm.synced_folder './share', '/home/vagrant/nfs', type: 'nfs', nfs_version: 4, nfs_udp: false
 
   config.vm.provider 'libvirt' do |libvirt|
+    libvirt.autostart = true
     libvirt.default_prefix = 'vpn3-'
     libvirt.driver = 'kvm'
     libvirt.memory = '128'
@@ -59,6 +60,7 @@ Vagrant.configure('2') do |config|
   modprobe tun
   echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/ipv4.conf
   sysctl -p /etc/sysctl.d/ipv4.conf
+  rc-update add openvpn boot
   rc-service openvpn start || true
   sleep 1
   SHELL
@@ -83,6 +85,7 @@ Vagrant.configure('2') do |config|
     ufw allow out on eth0 to 185.213.154.132 port 1197
     ufw allow in on eth0 from 185.213.154.132 port 1197
 
+    rc-update add ufw boot
     echo y | ufw enable
   SHELL
 end
