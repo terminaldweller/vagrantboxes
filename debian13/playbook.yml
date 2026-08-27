@@ -1,0 +1,278 @@
+---
+- name: configure debian trixie
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    managed_user: vagrant
+    managed_group: vagrant
+    managed_home: /home/vagrant
+
+    fzf_source_dir: "{{ managed_home }}/src/fzf"
+    fzf_version: v0.74.3
+
+    base_packages:
+      - build-essential
+      - ca-certificates
+      - curl
+      - wget
+      - extrepo
+      - git
+      - htop
+      - jq
+      - rsync
+      - tmux
+      - vim-nox
+      - ripgrep
+      - traceroute
+      - automake
+      - cmake
+      - bear
+      - ninja-build
+      - meson
+      - clang
+      - gdb
+      - eza
+      - zsh
+      - zsh-syntax-highlighting
+      - zsh-autosuggestions
+      - fd-find
+      - du-dust
+      - irssi
+      - profanity
+      - w3m
+      - lynx
+      - gnupg
+      - bind9-dnsutils
+      - socat
+      - lf
+      - bat
+      - python3-pip
+      - pipx
+
+    docker_conflicting_packages:
+      - containerd
+      - docker-compose
+      - docker-doc
+      - docker.io
+      - podman-docker
+      - runc
+
+    docker_packages:
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-ce
+      - docker-ce-cli
+      - docker-compose-plugin
+
+  tasks:
+    - name: Require Debian 13 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_facts["distribution"] == "Debian"
+          - ansible_facts["distribution_major_version"] | int >= 13
+        fail_msg: This playbook expects Debian 13 or newer.
+
+    - name: Install base packages
+      ansible.builtin.apt:
+        name: "{{ base_packages }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Enable the mise APT repository
+      ansible.builtin.command:
+        argv:
+          - extrepo
+          - enable
+          - mise
+        creates: /etc/apt/sources.list.d/extrepo_mise.sources
+      register: mise_repository
+
+    - name: Refresh APT metadata after enabling the mise repository
+      ansible.builtin.apt:
+        update_cache: true
+      when: mise_repository.changed
+
+    - name: Install mise
+      ansible.builtin.apt:
+        name: mise
+        state: present
+
+    - name: Verify the mise installation
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/mise
+          - --version
+      changed_when: false
+
+    - name: Install rustup
+      ansible.builtin.apt:
+        name: rustup
+        state: present
+
+    - name: Read the current default Rust toolchain
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/rustup
+          - default
+      become_user: "{{ managed_user }}"
+      environment:
+        HOME: "{{ managed_home }}"
+        CARGO_HOME: "{{ managed_home }}/.cargo"
+        RUSTUP_HOME: "{{ managed_home }}/.rustup"
+      register: rustup_default
+      changed_when: false
+      failed_when: false
+
+    - name: Install stable Rust and make it the default
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/rustup
+          - default
+          - stable
+      become_user: "{{ managed_user }}"
+      environment:
+        HOME: "{{ managed_home }}"
+        CARGO_HOME: "{{ managed_home }}/.cargo"
+        RUSTUP_HOME: "{{ managed_home }}/.rustup"
+      when:
+        - >
+          rustup_default.rc != 0 or
+          not (rustup_default.stdout | default('')).startswith('stable')
+
+    - name: Verify the Rust installation
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/rustc
+          - --version
+      become_user: "{{ managed_user }}"
+      environment:
+        HOME: "{{ managed_home }}"
+        CARGO_HOME: "{{ managed_home }}/.cargo"
+        RUSTUP_HOME: "{{ managed_home }}/.rustup"
+      changed_when: false
+
+    - name: Create the user source directory
+      ansible.builtin.file:
+        path: "{{ managed_home }}/src"
+        state: directory
+        owner: "{{ managed_user }}"
+        group: "{{ managed_group }}"
+        mode: "0755"
+
+    - name: Clone the fzf repository
+      ansible.builtin.git:
+        repo: https://github.com/junegunn/fzf.git
+        dest: "{{ fzf_source_dir }}"
+        version: "{{ fzf_version }}"
+        depth: 1
+        update: true
+      become_user: "{{ managed_user }}"
+      environment:
+        HOME: "{{ managed_home }}"
+      register: fzf_source
+
+    - name: Check whether fzf has already been built
+      ansible.builtin.stat:
+        path: "{{ fzf_source_dir }}/bin/fzf"
+      register: fzf_binary
+
+    - name: Build fzf from source
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/mise
+          - exec
+          - go@1.27.0
+          - --
+          - make
+          - install
+        chdir: "{{ fzf_source_dir }}"
+      become_user: "{{ managed_user }}"
+      environment:
+        HOME: "{{ managed_home }}"
+      when: fzf_source.changed or not fzf_binary.stat.exists
+
+    - name: Link fzf into /usr/local/bin
+      ansible.builtin.file:
+        src: "{{ fzf_source_dir }}/bin/fzf"
+        dest: /usr/local/bin/fzf
+        state: link
+        owner: root
+        group: root
+
+    - name: Verify the fzf build
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/fzf
+          - --version
+      changed_when: false
+
+    - name: Remove packages that conflict with Docker CE
+      ansible.builtin.apt:
+        name: "{{ docker_conflicting_packages }}"
+        state: absent
+
+    - name: Add the Docker APT repository
+      ansible.builtin.deb822_repository:
+        name: docker
+        types:
+          - deb
+        uris:
+          - https://download.docker.com/linux/debian
+        suites:
+          - "{{ ansible_facts['distribution_release'] }}"
+        components:
+          - stable
+        architectures:
+          - amd64
+        signed_by: https://download.docker.com/linux/debian/gpg
+        state: present
+      register: docker_repository
+
+    - name: Refresh APT metadata after adding Docker repository
+      ansible.builtin.apt:
+        update_cache: true
+      when: docker_repository.changed
+
+    - name: Install Docker
+      ansible.builtin.apt:
+        name: "{{ docker_packages }}"
+        state: present
+
+    - name: Create the Docker configuration directory
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Configure the Docker daemon
+      ansible.builtin.copy:
+        src: files/docker-daemon.json
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Docker
+
+    - name: Add the managed user to the docker group
+      ansible.builtin.user:
+        name: "{{ managed_user }}"
+        groups:
+          - docker
+        append: true
+
+    - name: Enable and start Docker
+      ansible.builtin.service:
+        name: docker
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Restart Docker
+      ansible.builtin.systemd_service:
+        name: docker
+        state: restarted

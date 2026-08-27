@@ -1,0 +1,32 @@
+# vi: set ft=ruby :
+# frozen_string_literal: true
+
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+# Vagrant.require_version '>= 2.2.6'
+Vagrant.configure('2') do |config|
+  config.vm.box = 'debian/trixie64'
+  config.vm.box_version = '13.20260519.1'
+  config.vm.box_check_update = false
+  config.vm.hostname = 'virt-deb13'
+
+  config.vm.synced_folder '.', '/vagrant', disabled: true
+
+  config.ssh.disable_deprecated_algorithms = true
+  config.ssh.key_type = :ed25519
+
+  config.vm.provider 'libvirt' do |libvirt|
+    libvirt.default_prefix = 'deb13-'
+    libvirt.driver = 'kvm'
+    libvirt.memory = 2048
+    libvirt.cpus = 2
+    libvirt.graphics_type = 'vnc'
+    libvirt.video_type = 'cirrus'
+    libvirt.sound_type = nil
+    libvirt.random model: 'random'
+  end
+
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = "playbook.yml"
+  end
+
+end
