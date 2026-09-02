@@ -57,6 +57,11 @@
       - openssh-server
       - endlessh
       - ufw
+      - apparmor
+      - apparmor-utils
+      - chrony
+      - jitterentropy-rngd
+      - haveged
 
     docker_conflicting_packages:
       - containerd
@@ -328,12 +333,13 @@
       loop_control:
         label: "{{ item.dest }}"
 
-    - name: Remove CUPS services
+    - name: Remove unnecessary services
       ansible.builtin.apt:
         name:
           - cups
           - cups-daemon
           - cups-browsed
+          - avahi-daemon
         state: absent
         purge: true
 
@@ -345,6 +351,9 @@
       loop:
         - ssh
         - endlessh
+        - chrony
+        - jitterentropy
+        - haveged
 
     - name: set the UFW incoming policy
       community.general.ufw:
@@ -369,6 +378,19 @@
     - name: Enable UFW
       community.general.ufw:
         state: enabled
+
+    - name: Enable and start AppArmor
+      ansible.builtin.systemd_service:
+        name: apparmor
+        enabled: true
+        state: started
+
+    - name: Verify AppArmor is enabled
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/aa-status
+          - --enabled
+      changed_when: false
 
   handlers:
     - name: Restart Docker
