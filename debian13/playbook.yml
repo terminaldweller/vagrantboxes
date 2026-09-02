@@ -11,6 +11,10 @@
 
     fzf_source_dir: "{{ managed_home }}/src/fzf"
     fzf_version: v0.74.3
+    scripts_source_dir: "{{ managed_home }}/scripts"
+    minimalrc_source_dir: "{{ managed_home }}/minimalrc"
+    fzfgit_source_dir: "{{ managed_home }}/devi/fzf-git.sh"
+    p10k_source_dir: "{{ managed_home }}/powerlevel10k"
 
     base_packages:
       - build-essential
@@ -50,6 +54,9 @@
       - bat
       - python3-pip
       - pipx
+      - openssh-server
+      - endlessh
+      - ufw
 
     docker_conflicting_packages:
       - containerd
@@ -65,6 +72,12 @@
       - docker-ce
       - docker-ce-cli
       - docker-compose-plugin
+
+    ufw_allow_rules:
+      - port: "22"
+        comment: "allow sshd"
+      - port: "2222"
+        comment: "allow endlessh"
 
   tasks:
     - name: Require Debian 13 or newer
@@ -270,6 +283,92 @@
         name: docker
         enabled: true
         state: started
+
+    - name: Clone user repositories
+      ansible.builtin.git:
+        repo: "{{ item.repo }}"
+        dest: "{{ item.dest }}"
+        update: true
+      become_user: "{{ managed_user }}"
+      environment:
+        HOME: "{{ managed_home }}"
+      loop:
+        - repo: https://github.com/terminaldweller/scripts.git
+          dest: "{{ scripts_source_dir }}"
+        - repo: https://github.com/terminaldweller/minimalrc.git
+          dest: "{{ minimalrc_source_dir }}"
+        - repo: https://github.com/junegunn/fzf-git.sh.git
+          dest: "{{ fzfgit_source_dir }}"
+        - repo: https://github.com/romkatv/powerlevel10k.git
+          dest: "{{ p10k_source_dir }}"
+      loop_control:
+        label: "{{ item.repo }}"
+
+    - name: Copy configuration files from cloned repositories
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ managed_home }}/{{ item.dest }}"
+        remote_src: true
+        owner: "{{ managed_user }}"
+        group: "{{ managed_group }}"
+        mode: "0644"
+      loop:
+        - src: "{{ scripts_source_dir }}/.inputrc"
+          dest: .inputrc
+        - src: "{{ scripts_source_dir }}/.dir_colors"
+          dest: .dir_colors
+        - src: "{{ minimalrc_source_dir }}/.p10k.zsh"
+          dest: .p10k.zsh
+        - src: "{{ minimalrc_source_dir }}/.tmux.conf"
+          dest: .tmux.conf
+        - src: "{{ minimalrc_source_dir }}/.vimrc"
+          dest: .vimrc
+        - src: "{{ minimalrc_source_dir }}/.zshrc"
+          dest: .zshrc
+      loop_control:
+        label: "{{ item.dest }}"
+
+    - name: Remove CUPS services
+      ansible.builtin.apt:
+        name:
+          - cups
+          - cups-daemon
+          - cups-browsed
+        state: absent
+        purge: true
+
+    - name: Enable and start services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - ssh
+        - endlessh
+
+    - name: set the UFW incoming policy
+      community.general.ufw:
+        direction: incoming
+        default: deny
+
+    - name: set the UFW outgoing policy
+      community.general.ufw:
+        direction: outgoing
+        default: allow
+
+    - name: add ufw allow rules
+      community.general.ufw:
+        rule: allow
+        proto: tcp
+        to_port: "{{ item.port }}"
+        comment: "{{ item.comment }}"
+      loop: "{{ ufw_allow_rules }}"
+      loop_control:
+        label: "{{ item.comment }}"
+
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
 
   handlers:
     - name: Restart Docker
