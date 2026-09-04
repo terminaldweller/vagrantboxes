@@ -62,6 +62,8 @@
       - chrony
       - jitterentropy-rngd
       - haveged
+      - sshguard
+      - lynis
 
     docker_conflicting_packages:
       - containerd
@@ -98,6 +100,30 @@
         state: present
         update_cache: true
         cache_valid_time: 3600
+
+    - name: Upgrade installed packages
+      ansible.builtin.apt:
+        upgrade: safe
+        update_cache: true
+
+    - name: Enable periodic apt upgrades
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        owner: root
+        group: root
+        mode: "644"
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+
+    - name: Enable APT update timers
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - apt-daily.timer
+        - apt-daily-upgrade.timer
 
     - name: Enable the mise APT repository
       ansible.builtin.command:
@@ -354,6 +380,7 @@
         - chrony
         - jitterentropy
         - haveged
+        - sshguard
 
     - name: set the UFW incoming policy
       community.general.ufw:
@@ -392,8 +419,35 @@
           - --enabled
       changed_when: false
 
+    - name: Install SSH hardening configuration
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/00-hardening.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          PermitRootLogin no
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          PubkeyAuthentication yes
+          PermitEmptyPasswords no
+          X11Forwarding no
+          AllowUsers {{ managed_user }}
+      notify: Restart SSH
+
+    - name: Validate the SSH configuration
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/sshd
+          - -t
+      changed_when: false
+
   handlers:
     - name: Restart Docker
       ansible.builtin.systemd_service:
         name: docker
+        state: restarted
+    - name: Restart SSH
+      ansible.builtin.systemd_service:
+        name: ssh
         state: restarted
