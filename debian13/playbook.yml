@@ -9,6 +9,10 @@
     managed_group: vagrant
     managed_home: /home/vagrant
 
+    nym_repo_setup_version: "2.0.1"
+    nym_repo_setup_deb: >-
+      /var/cache/apt/archives/nym-repo-setup_{{ nym_repo_setup_version }}_all.deb
+
     fzf_source_dir: "{{ managed_home }}/src/fzf"
     fzf_version: v0.74.3
     scripts_source_dir: "{{ managed_home }}/scripts"
@@ -50,6 +54,11 @@
       - gnupg
       - bind9-dnsutils
       - socat
+      - tcpdump
+      - iptraf-ng
+      - netcat-openbsd
+      - lnav
+      - conntrack
       - lf
       - bat
       - python3-pip
@@ -64,6 +73,8 @@
       - haveged
       - sshguard
       - lynis
+      - zoxide
+      - grc
 
     docker_conflicting_packages:
       - containerd
@@ -138,6 +149,38 @@
       ansible.builtin.apt:
         update_cache: true
       when: mise_repository.changed
+
+    - name: Download the Nym repository setup package
+      ansible.builtin.get_url:
+        url: >-
+          https://apt-ppa.nym.com/pool/main/n/nym-repo-setup/nym-repo-setup_{{ nym_repo_setup_version }}_all.deb
+        dest: "{{ nym_repo_setup_deb }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Install the Nym APT repository
+      ansible.builtin.apt:
+        deb: "{{ nym_repo_setup_deb }}"
+        state: present
+      register: nym_repository
+
+    - name: Refresh APT metadata after adding the Nym repository
+      ansible.builtin.apt:
+        update_cache: true
+      when: nym_repository.changed
+
+    - name: Uninstall NymVPN
+      ansible.builtin.apt:
+        name: nym-vpn-app
+        state: absent
+
+    - name: Install the NymVPN daemon and CLI
+      ansible.builtin.apt:
+        name:
+          - nym-vpnd
+          - nym-vpnc
+        state: present
 
     - name: Install mise
       ansible.builtin.apt:
@@ -295,11 +338,20 @@
 
     - name: Configure the Docker daemon
       ansible.builtin.copy:
-        src: files/docker-daemon.json
         dest: /etc/docker/daemon.json
         owner: root
         group: root
         mode: "0644"
+        content: |
+          {
+            "ipv6": true,
+            "live-restore": true,
+            "runtimes": {
+              "runsc": {
+                "path": "/usr/bin/runsc"
+              }
+            }
+          }
       notify: Restart Docker
 
     - name: Add the managed user to the docker group
@@ -381,6 +433,7 @@
         - jitterentropy
         - haveged
         - sshguard
+        - nym-vpnd
 
     - name: set the UFW incoming policy
       community.general.ufw:
@@ -426,7 +479,6 @@
         group: root
         mode: "0644"
         content: |
-          PermitRootLogin no
           PasswordAuthentication no
           KbdInteractiveAuthentication no
           PubkeyAuthentication yes
@@ -442,6 +494,54 @@
           - -t
       changed_when: false
 
+    - name: Ensure the SSHGuard blacklist file exists
+      ansible.builtin.file:
+        path: /etc/sshguard/sshguard.conf
+        state: touch
+        owner: root
+        group: root
+        mode: "0600"
+        access_time: preserve
+        modification_time: preserve
+      notify: Restart SSHGuard
+
+    - name: Configure SSHGuard blacklisting
+      ansible.builtin.lineinfile:
+        path: /etc/sshguard/sshguard.conf
+        regexp: '^\s*#?\s*{{ item.name }}\s*='
+        line: "{{ item.name }}={{ item.value }}"
+        create: false
+      loop:
+        - name: THRESHOLD
+          value: "10"
+        - name: BLACKLIST_FILE
+          value: "10:/etc/sshguard/blacklist"
+        - name: IPV6_SUBNET
+          value: "64"
+        - name: IPV4_SUBNET
+          value: "24"
+      loop_control:
+        label: "{{ item.name }}"
+      notify: Restart SSHGuard
+
+    - name: Read the NymVPN local-network policy
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/nym-vpnc
+          - lan
+          - get
+      register: nym_lan_policy
+      changed_when: false
+
+    - name: Allow local-network traffic while NymVPN is connected
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/nym-vpnc
+          - lan
+          - set
+          - allow
+      when: "(nym_lan_policy.stdout | trim) != 'Local network policy: allow'"
+
   handlers:
     - name: Restart Docker
       ansible.builtin.systemd_service:
@@ -450,4 +550,8 @@
     - name: Restart SSH
       ansible.builtin.systemd_service:
         name: ssh
+        state: restarted
+    - name: Restart SSHGuard
+      ansible.builtin.systemd_service:
+        name: sshguard
         state: restarted

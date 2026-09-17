@@ -5,10 +5,9 @@ ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
 Vagrant.require_version '>= 2.2.6'
 Vagrant.configure('2') do |config|
   config.vm.box = 'kalilinux/rolling'
-  config.vm.box_version = '2024.1.0'
+  config.vm.box_version = '2024.2.0'
   config.vm.box_check_update = false
-  config.vm.hostname = 'virt-kali'
-
+  config.vm.hostname = 'kali202420'
 
   # ssh
   config.ssh.insert_key = true
@@ -20,16 +19,11 @@ Vagrant.configure('2') do |config|
   config.vm.graceful_halt_timeout = 60
   config.ssh.connect_timeout = 15
 
-  # shares
-  # config.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_version: 4, nfs_udp: false
-
-  # config.vagrant.plugins = ['vagrant-reload', { 'vagrant-libvirt' => { 'version' => '^0.6.2' } }]
-
   config.vm.provider 'libvirt' do |libvirt|
-    libvirt.default_prefix = 'kali-'
+    libvirt.default_prefix = 'kali202420'
     libvirt.driver = 'kvm'
-    libvirt.memory = '3072'
-    libvirt.cpus = 4
+    libvirt.memory = '6144'
+    libvirt.cpus = 6
     libvirt.sound_type = nil
     libvirt.qemuargs value: '-nographic'
     libvirt.qemuargs value: '-nodefaults'
@@ -37,6 +31,10 @@ Vagrant.configure('2') do |config|
     libvirt.qemuargs value: '-serial'
     libvirt.qemuargs value: 'pty'
     libvirt.usb_controller :model => "qemu-xhci"
-    # libvirt.usb :vendor => '0x0bda', :product => '0x2838'
   end
+
+  # config.vm.provision 'update-upgrade', type: 'shell', name: 'update-upgrade', inline: <<-SHELL
+  #   set -ex
+  #   sudo apt update && sudo apt upgrade -y && sudo apt autoremove
+  # SHELL
 end
