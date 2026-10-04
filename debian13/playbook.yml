@@ -75,6 +75,14 @@
       - lynis
       - zoxide
       - grc
+      - apt-src
+      - apt-file
+      - libpam-tmpdir
+      - needrestart
+      - libpam-passwdqc
+      - whois
+      - systemd-resolved
+      - libnss-resolve
 
     docker_conflicting_packages:
       - containerd
@@ -104,6 +112,14 @@
           - ansible_facts["distribution"] == "Debian"
           - ansible_facts["distribution_major_version"] | int >= 13
         fail_msg: This playbook expects Debian 13 or newer.
+
+    - name: Refresh the APT cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+        update_cache_retries: 10
+        update_cache_retry_max_delay: 15
+        lock_timeout: 300
 
     - name: Install base packages
       ansible.builtin.apt:
@@ -135,6 +151,40 @@
       loop:
         - apt-daily.timer
         - apt-daily-upgrade.timer
+
+    - name: Create the systemd-resolved configuration directory
+      ansible.builtin.file:
+        path: /etc/systemd/resolved.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Configure systemd-resolved
+      ansible.builtin.copy:
+        dest: /etc/systemd/resolved.conf.d/60-ansible.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Resolve]
+          DNS=121.127.33.220#jumph.dehein.org 185.130.46.34#jumphh.dehein.org 89.125.153.23#jumphhh.dehein.org 2a07:e01:3:166::1#jumph.dehein.org 2a07:e01:3:167::1#jumphh.dehein.org 2a01:4f9:6b:461a:21a9:2f91:e65e:1#jumphhh.dehein.org
+          DNSSEC=yes
+          FallbackDNS=
+          DNSOverTLS=yes
+          DNSStubListener=yes
+          LLMNR=no
+          MulticastDNS=no
+          Cache=yes
+          CacheFromLocalhost=yes
+      notify: Restart systemd-resolved
+
+    - name: Route traditional resolver requests through systemd-resolved
+      ansible.builtin.file:
+        src: /run/systemd/resolve/stub-resolv.conf
+        dest: /etc/resolv.conf
+        state: link
+        force: true
 
     - name: Enable the mise APT repository
       ansible.builtin.command:
@@ -434,6 +484,7 @@
         - haveged
         - sshguard
         - nym-vpnd
+        - systemd-resolved
 
     - name: set the UFW incoming policy
       community.general.ufw:
@@ -554,4 +605,8 @@
     - name: Restart SSHGuard
       ansible.builtin.systemd_service:
         name: sshguard
+        state: restarted
+    - name: Restart systemd-resolved
+      ansible.builtin.systemd_service:
+        name: systemd-resolved
         state: restarted
