@@ -144,7 +144,7 @@
         mode: "0644"
         content: |
           [Resolve]
-          DNS=121.127.33.220#jumph.dehein.org 185.130.46.34#jumphh.dehein.org 89.125.153.23#jumphhh.dehein.org 2a07:e01:3:166::1#jumph.dehein.org 2a07:e01:3:167::1#jumphh.dehein.org 2a01:4f9:6b:461a:21a9:2f91:e65e:1#jumphhh.dehein.org
+          DNS=121.127.33.220#jumph.dehein.org 185.130.46.34#jumphh.dehein.org 89.125.153.23#jumphhh.dehein.org 2a07:e01:3:166::1#jumph.dehein.org 2a07:e01:3:167::1#jumphh.dehein.org
           DNSSEC=yes
           FallbackDNS=
           DNSOverTLS=yes
@@ -154,6 +154,15 @@
           Cache=yes
           CacheFromLocalhost=yes
       notify: Restart systemd-resolved
+
+    - name: Enable and start systemd-resolved
+      ansible.builtin.systemd_service:
+        name: systemd-resolved
+        enabled: true
+        state: started
+
+    - name: Apply systemd-resolved configuration immediately
+      ansible.builtin.meta: flush_handlers
 
     - name: Route traditional resolver requests through systemd-resolved
       ansible.builtin.file:
